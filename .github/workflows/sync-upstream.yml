@@ -40,6 +40,7 @@ jobs:
     - name: Merge upstream changes
       if: steps.check_changes.outputs.changes == 'true'
       run: |
+        git pull origin main --no-edit
         git merge upstream/main --no-edit
         git push origin main
 
