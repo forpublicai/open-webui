@@ -14,7 +14,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.PAT_TOKEN }}
         fetch-depth: 0
 
     - name: Configure Git
@@ -30,13 +30,9 @@ jobs:
     - name: Check for upstream changes
       id: check_changes
       run: |
-        # Get the latest upstream commit
-        UPSTREAM_COMMIT=$(git rev-parse upstream/main)
-        CURRENT_COMMIT=$(git rev-parse HEAD)
-
-        if [ "$UPSTREAM_COMMIT" != "$CURRENT_COMMIT" ]; then
+        BEHIND=$(git rev-list HEAD..upstream/main --count)
+        if [ "$BEHIND" -gt "0" ]; then
           echo "changes=true" >> $GITHUB_OUTPUT
-          echo "upstream_commit=$UPSTREAM_COMMIT" >> $GITHUB_OUTPUT
         else
           echo "changes=false" >> $GITHUB_OUTPUT
         fi
