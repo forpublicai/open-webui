@@ -135,11 +135,12 @@ RUN apt-get update && \
 # install python dependencies
 COPY --chown=$UID:$GID ./backend/requirements.txt ./requirements.txt
 
-RUN if [ "$USE_CUDA" = "true" ]; then \
+RUN pip3 install --no-cache-dir uv && \
+    if [ "$USE_CUDA" = "true" ]; then \
     # If you use CUDA the whisper and embedding model will be downloaded on first use
     # fix: pin torch<=2.9.1 - torch 2.10.0 aarch64 wheels cause SIGILL on ARM devices (RPi 4 Cortex-A72) #21349
     pip3 install 'torch<=2.9.1' torchvision torchaudio --index-url https://download.pytorch.org/whl/$USE_CUDA_DOCKER_VER --no-cache-dir && \
-    pip3 install --no-cache-dir -r requirements.txt && \
+    uv pip install --system -r requirements.txt --no-cache-dir && \
     python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')" && \
     python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ.get('AUXILIARY_EMBEDDING_MODEL', 'TaylorAI/bge-micro-v2'), device='cpu')" && \
     python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL'], device='cpu', compute_type='int8', download_root=os.environ['WHISPER_MODEL_DIR'])"; \
@@ -147,7 +148,7 @@ RUN if [ "$USE_CUDA" = "true" ]; then \
     python -c "import nltk; nltk.download('punkt_tab')"; \
     else \
     pip3 install 'torch<=2.9.1' torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --no-cache-dir && \
-    pip3 install --no-cache-dir -r requirements.txt && \
+    uv pip install --system -r requirements.txt --no-cache-dir && \
     if [ "$USE_SLIM" != "true" ]; then \
     python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')" && \
     python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ.get('AUXILIARY_EMBEDDING_MODEL', 'TaylorAI/bge-micro-v2'), device='cpu')" && \
@@ -158,6 +159,10 @@ RUN if [ "$USE_CUDA" = "true" ]; then \
     fi; \
     mkdir -p /app/backend/data && chown -R $UID:$GID /app/backend/data/ && \
     rm -rf /var/lib/apt/lists/*;
+
+# Verify critical dependencies are installed
+RUN python3 -c "import uvicorn; print('uvicorn OK:', uvicorn.__file__)" && \
+    python3 -c "import fastapi; print('fastapi OK:', fastapi.__file__)"
 
 # Install Ollama if requested
 RUN if [ "$USE_OLLAMA" = "true" ]; then \
