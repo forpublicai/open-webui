@@ -67,7 +67,7 @@ jobs:
 
         docker build \
           --platform linux/amd64 \
-          --build-arg USE_SLIM=TRUE \
+          --build-arg USE_SLIM=true \
           -t "$IMAGE_TAG" \
           -t "$LATEST_TAG" \
           .
