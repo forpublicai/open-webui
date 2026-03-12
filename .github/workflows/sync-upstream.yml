@@ -66,6 +66,7 @@ jobs:
         LATEST_TAG="ghcr.io/forpublicai/open-webui:latest-cognito-patch"
 
         docker build \
+          --no-cache \
           --platform linux/amd64 \
           --build-arg USE_SLIM=true \
           -t "$IMAGE_TAG" \
