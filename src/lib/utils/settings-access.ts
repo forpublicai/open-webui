@@ -13,6 +13,8 @@ export const canManageChats = (
 export const canUseApiKeys = ({ user, config }: SettingsAccessContext) =>
 	(config?.features?.enable_api_keys ?? true) &&
 	(user?.role === 'admin' || (user?.permissions?.features?.api_keys ?? false));
+export const canDeleteAccount = ({ config }: SettingsAccessContext) =>
+	config?.features?.enable_account_deletion ?? true;
 export const canUseNotificationTargets = ({ user, config }: SettingsAccessContext) =>
 	config?.features?.enable_user_webhooks &&
 	(user?.role === 'admin' || (user?.permissions?.features?.webhooks ?? false));

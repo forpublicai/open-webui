@@ -43,6 +43,7 @@ from open_webui.models.auths import (
     AddUserForm,
     ApiKey,
     Auths,
+    DeleteAccountForm,
     LdapForm,
     SigninForm,
     SigninResponse,
@@ -109,6 +110,7 @@ ADMIN_CONFIG_KEYS = {
     'ENABLE_LOGIN_FORM': 'ui.enable_login_form',
     'ENABLE_SIGNUP': 'ui.enable_signup',
     'ENABLE_API_KEYS': 'auth.enable_api_keys',
+    'ENABLE_ACCOUNT_DELETION': 'auth.enable_account_deletion',
     'ENABLE_API_KEYS_ENDPOINT_RESTRICTIONS': 'auth.api_key.endpoint_restrictions',
     'API_KEYS_ALLOWED_ENDPOINTS': 'auth.api_key.allowed_endpoints',
     'DEFAULT_USER_ROLE': 'ui.default_user_role',
@@ -1026,10 +1028,10 @@ async def signout(request: Request, response: Response, db: AsyncSession = Depen
                                 return JSONResponse(
                                     status_code=200,
                                     content={
-                                        "status": True,
-                                        "redirect_url": f"{logout_url}?client_id={OAUTH_CLIENT_ID}"
+                                        'status': True,
+                                        'redirect_url': f'{logout_url}?client_id={OAUTH_CLIENT_ID}'
                                         + (
-                                            f"&logout_uri={WEBUI_AUTH_SIGNOUT_REDIRECT_URL}"
+                                            f'&logout_uri={WEBUI_AUTH_SIGNOUT_REDIRECT_URL}'
                                             if WEBUI_AUTH_SIGNOUT_REDIRECT_URL
                                             else ''
                                         ),
@@ -1214,6 +1216,7 @@ class AdminConfig(BaseModel):
     ENABLE_LOGIN_FORM: bool = True
     ENABLE_SIGNUP: bool
     ENABLE_API_KEYS: bool
+    ENABLE_ACCOUNT_DELETION: bool
     ENABLE_API_KEYS_ENDPOINT_RESTRICTIONS: bool
     API_KEYS_ALLOWED_ENDPOINTS: str
     DEFAULT_USER_ROLE: str
@@ -1567,6 +1570,82 @@ async def delete_api_key(
             subject_type='user',
         )
     return success
+
+
+@router.delete('/account', response_model=bool)
+async def delete_account(
+    request: Request,
+    response: Response,
+    form_data: DeleteAccountForm,
+    user=Depends(get_verified_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """Permanently delete the current user's own account."""
+    if not await Config.get('auth.enable_account_deletion'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ERROR_MESSAGES.ACCOUNT_DELETE_DISABLED,
+        )
+
+    # Only allow deletion from online session
+    if getattr(request.state, 'auth_type', None) == 'api_key':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ERROR_MESSAGES.ACTION_PROHIBITED,
+        )
+
+    if (
+        not form_data.confirmation.strip()
+        or form_data.confirmation.strip().lower() != (user.email or '').strip().lower()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.ACCOUNT_DELETE_CONFIRMATION_MISMATCH,
+        )
+
+    first_user = await Users.get_first_user(db=db)
+    if first_user and user.id == first_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ERROR_MESSAGES.PRIMARY_ADMIN_DELETE,
+        )
+
+    if user.role == 'admin':
+        num_admins = await Users.get_num_admins(db=db)
+        if num_admins <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=ERROR_MESSAGES.LAST_ADMIN_DELETE,
+            )
+
+    success = await Auths.delete_auth_by_id(user.id, db=db)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ERROR_MESSAGES.DELETE_USER_ERROR,
+        )
+
+    try:
+        await revoke_user_tokens(request, user.id)
+        await publish_event(
+            request,
+            EVENTS.USER_DELETED,
+            actor=user,
+            subject_id=user.id,
+            subject_type='user',
+        )
+    except Exception as e:
+        log.error(f'Post-deletion cleanup failed for user {user.id}: {e}')
+
+    response.delete_cookie('token')
+    try:
+        request.session.clear()
+    except Exception:
+        pass
+    response.delete_cookie('owui-session')
+    response.delete_cookie('oui-session')
+
+    return True
 
 
 # get api key

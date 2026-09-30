@@ -2453,6 +2453,8 @@ Responses from models: {{responses}}"""
 
 ENABLE_API_KEYS = os.getenv('ENABLE_API_KEYS', 'False').lower() == 'true'
 
+ENABLE_ACCOUNT_DELETION = os.getenv('ENABLE_ACCOUNT_DELETION', 'False').lower() == 'true'
+
 ENABLE_API_KEYS_ENDPOINT_RESTRICTIONS = (
     os.getenv(
         'ENABLE_API_KEYS_ENDPOINT_RESTRICTIONS',
@@ -3153,6 +3155,7 @@ DEFAULT_CONFIG = {
     'task.voice.prompt.enable': ENABLE_VOICE_MODE_PROMPT,
     'task.tools.prompt_template': TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
     'auth.enable_api_keys': ENABLE_API_KEYS,
+    'auth.enable_account_deletion': ENABLE_ACCOUNT_DELETION,
     'auth.api_key.endpoint_restrictions': ENABLE_API_KEYS_ENDPOINT_RESTRICTIONS,
     'auth.api_key.allowed_endpoints': API_KEYS_ALLOWED_ENDPOINTS,
     'auth.jwt_expiry': JWT_EXPIRES_IN,

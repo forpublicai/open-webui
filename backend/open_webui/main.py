@@ -2260,6 +2260,7 @@ async def get_app_config(request: Request):
         'ui.enable_signup',
         'ui.enable_login_form',
         'auth.enable_api_keys',
+        'auth.enable_account_deletion',
         'ui.enable_password_change_form',
         'direct.enable',
         'direct.integrations.enable',
@@ -2343,6 +2344,7 @@ async def get_app_config(request: Request):
             **(
                 {
                     'enable_api_keys': config.get('auth.enable_api_keys'),
+                    'enable_account_deletion': config.get('auth.enable_account_deletion'),
                     'enable_password_change_form': config.get('ui.enable_password_change_form'),
                     'enable_version_update_check': ENABLE_VERSION_UPDATE_CHECK,
                     'enable_pyodide_file_persistence': ENABLE_PYODIDE_FILE_PERSISTENCE,

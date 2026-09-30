@@ -704,6 +704,12 @@ class UsersTable:
             result = await session.execute(select(func.count()).select_from(User))
             return result.scalar()
 
+    # count admin-role accounts (used to block removing the last admin)
+    async def get_num_admins(self, db: AsyncSession | None = None) -> int:
+        async with get_async_db_context(db) as session:
+            result = await session.execute(select(func.count()).select_from(User).where(User.role == 'admin'))
+            return result.scalar()
+
     # check user existence
     async def has_users(self, db: AsyncSession | None = None) -> bool:
         async with get_async_db_context(db) as session:

@@ -193,6 +193,14 @@
 					<Switch bind:state={adminConfig.ENABLE_API_KEYS} ariaLabelledbyId={labelId} />
 				</AdminSettingRow>
 
+				<AdminSettingRow
+					label={$i18n.t('settings.admin.authentication.accountDeletion.label')}
+					description={$i18n.t('settings.admin.authentication.accountDeletion.description')}
+					let:labelId
+				>
+					<Switch bind:state={adminConfig.ENABLE_ACCOUNT_DELETION} ariaLabelledbyId={labelId} />
+				</AdminSettingRow>
+
 				{#if adminConfig?.ENABLE_API_KEYS}
 					<AdminSettingRow
 						label={$i18n.t('settings.admin.authentication.apiKeyEndpointRestrictions.label')}

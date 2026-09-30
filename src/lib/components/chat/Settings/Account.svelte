@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { canUseApiKeys } from '$lib/utils/settings-access';
+	import { canUseApiKeys, canDeleteAccount } from '$lib/utils/settings-access';
 	import { toast } from 'svelte-sonner';
 	import { onMount, getContext } from 'svelte';
 
@@ -8,8 +8,11 @@
 		updateUserProfile,
 		createAPIKey,
 		deleteAPIKey,
+		deleteAccount,
 		getAPIKey,
-		getSessionUser
+		getSessionUser,
+		userSignOut,
+		getLogoutRedirectUrl
 	} from '$lib/apis/auths';
 	import { getUserVariables, updateUserVariables } from '$lib/apis/users';
 
@@ -53,6 +56,7 @@
 	let APIKeyCopied = false;
 	let showAPIKeyMenu = false;
 	let showDeleteAPIKeyConfirm = false;
+	let showDeleteAccountConfirm = false;
 	let variableRows: { key: string; value: string }[] = [];
 	let variableModalOpen = false;
 	let variableFormIndex: number | null = null;
@@ -196,6 +200,28 @@
 		if (res) {
 			APIKey = '';
 			toast.success($i18n.t('API Key deleted.'));
+		}
+	};
+
+	const deleteAccountHandler = async (confirmation: string) => {
+		if ((confirmation ?? '').trim().toLowerCase() !== ($user?.email ?? '').trim().toLowerCase()) {
+			toast.error($i18n.t('Please type your account email exactly to confirm.'));
+			return;
+		}
+
+		const res = await deleteAccount(localStorage.token, confirmation).catch((error) => {
+			toast.error(`${error}`);
+			return false;
+		});
+
+		if (res) {
+			const signOutRes = await userSignOut().catch((error) => {
+				console.error(error);
+				return null;
+			});
+
+			localStorage.removeItem('token');
+			location.href = getLogoutRedirectUrl(signOutRes?.redirect_url);
 		}
 	};
 
@@ -568,6 +594,29 @@
 				{/if}
 			</UserSettingSection>
 		{/if}
+
+		{#if canDeleteAccount({ user: $user, config: $config })}
+			<UserSettingSection>
+				<UserSettingField label={$i18n.t('Delete Account')}>
+					<div class="flex items-center gap-2">
+						<div class="text-xs text-gray-500 flex-1">
+							{$i18n.t(
+								'Permanently delete your account and all associated data. This cannot be undone.'
+							)}
+						</div>
+						<button
+							class="px-3 py-1.5 text-xs rounded-full bg-red-600 hover:bg-red-700 text-white transition"
+							type="button"
+							on:click={() => {
+								showDeleteAccountConfirm = true;
+							}}
+						>
+							{$i18n.t('Delete Account')}
+						</button>
+					</div>
+				</UserSettingField>
+			</UserSettingSection>
+		{/if}
 	</div>
 
 	<div class="shrink-0 flex w-full justify-end pt-3 text-sm font-normal">
@@ -590,6 +639,19 @@
 		{$i18n.t('This will revoke the current API key.')}
 	</div>
 </ConfirmDialog>
+
+<ConfirmDialog
+	bind:show={showDeleteAccountConfirm}
+	title={$i18n.t('Delete Account?')}
+	message={$i18n.t(
+		'This will permanently delete your account, chats, and API keys, and you will be logged out immediately. This cannot be undone. Type your account email ({{email}}) to confirm.',
+		{ email: $user?.email ?? '' }
+	)}
+	confirmLabel={$i18n.t('Delete Account')}
+	input={true}
+	inputPlaceholder={$i18n.t('Type your email to confirm')}
+	on:confirm={(e) => deleteAccountHandler(e.detail)}
+/>
 
 <Modal size="sm" bind:show={variableModalOpen}>
 	<form class="p-4" on:submit|preventDefault={saveVariableForm}>
